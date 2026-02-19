@@ -10,18 +10,31 @@ body {
   margin: 0;
   font-family: sans-serif;
   background: #f4f7f9;
-  text-align: center;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
 }
 
 h1 {
-  font-size: 32px;
-  margin: 15px;
+  font-size: 28px;
+}
+
+.adminBtn {
+  font-size: 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #ccc;
 }
 
 .container {
   display: flex;
   justify-content: space-around;
-  align-items: center;
+  padding: 10px;
 }
 
 .panel {
@@ -33,32 +46,39 @@ h1 {
 }
 
 .status {
-  font-size: 28px;
+  font-size: 24px;
   margin: 10px;
 }
 
 button {
-  width: 90%;
-  font-size: 22px;
+  width: 95%;
+  font-size: 20px;
   padding: 15px;
-  margin: 8px;
+  margin: 8px 0;
   border-radius: 12px;
   border: none;
   background: #a8dadc;
 }
 
 .summary {
-  margin-top: 15px;
-  font-size: 20px;
+  margin-top: 10px;
+  font-size: 18px;
+}
+
+.hidden {
+  display: none;
 }
 </style>
 </head>
 
 <body>
 
+<div class="header">
 <h1>トイレ順番管理</h1>
+<button class="adminBtn" onclick="enterAdmin()">🔒 管理者</button>
+</div>
 
-<div class="container">
+<div class="container" id="mainView">
 
 <div class="panel">
 <h2>使用状況</h2>
@@ -76,28 +96,39 @@ button {
 <h2>終了</h2>
 <button onclick="finish('奥')">奥 使用終了</button>
 <button onclick="finish('手前')">手前 使用終了</button>
+</div>
 
-<div class="summary">
-<h3>本日の利用回数</h3>
+</div>
+
+<!-- 管理画面 -->
+<div id="adminView" class="hidden" style="padding:20px;">
+<h2>管理者画面</h2>
+
+<div>
+<h3>本日の集計</h3>
 <div>合計：<span id="totalCount">0</span></div>
 <div>奥：<span id="okuCount">0</span></div>
 <div>手前：<span id="temaeCount">0</span></div>
 </div>
 
-</div>
+<br>
+
+<button onclick="resetData()">本日データをリセット</button>
+<button onclick="exportCSV()">CSV出力</button>
+<button onclick="exitAdmin()">戻る</button>
 
 </div>
 
 <script>
+const ADMIN_PASS = "5811";
+
 let queue = [];
 let counter = 1;
 let okuUser = null;
 let temaeUser = null;
 
 let today = new Date().toISOString().split("T")[0];
-
 let stats = JSON.parse(localStorage.getItem("toiletStats")) || {};
-
 if (!stats[today]) {
   stats[today] = { total: 0, oku: 0, temae: 0 };
 }
@@ -143,16 +174,12 @@ function assignToilet() {
       break;
     }
   }
-
   updateDisplay();
 }
 
 function finish(place) {
-  if (place === "奥") {
-    okuUser = null;
-  } else {
-    temaeUser = null;
-  }
+  if (place === "奥") okuUser = null;
+  if (place === "手前") temaeUser = null;
   speak("使用終了しました");
   assignToilet();
 }
@@ -160,13 +187,48 @@ function finish(place) {
 function updateDisplay() {
   document.getElementById("oku").innerText = okuUser ? okuUser + "番 使用中" : "空き";
   document.getElementById("temae").innerText = temaeUser ? temaeUser + "番 使用中" : "空き";
-
   document.getElementById("wait").innerText =
     queue.length > 0 ? "待ち人数：" + queue.length + "人" : "待ちなし";
 
   document.getElementById("totalCount").innerText = stats[today].total;
   document.getElementById("okuCount").innerText = stats[today].oku;
   document.getElementById("temaeCount").innerText = stats[today].temae;
+}
+
+function enterAdmin() {
+  const pass = prompt("管理者パスコードを入力");
+  if (pass === ADMIN_PASS) {
+    document.getElementById("mainView").classList.add("hidden");
+    document.getElementById("adminView").classList.remove("hidden");
+    updateDisplay();
+  } else {
+    alert("パスコードが違います");
+  }
+}
+
+function exitAdmin() {
+  document.getElementById("adminView").classList.add("hidden");
+  document.getElementById("mainView").classList.remove("hidden");
+}
+
+function resetData() {
+  if (confirm("本日のデータをリセットしますか？")) {
+    stats[today] = { total: 0, oku: 0, temae: 0 };
+    saveStats();
+    updateDisplay();
+  }
+}
+
+function exportCSV() {
+  let csv = "日付,合計,奥,手前\n";
+  for (let date in stats) {
+    csv += date + "," + stats[date].total + "," + stats[date].oku + "," + stats[date].temae + "\n";
+  }
+  let blob = new Blob([csv], { type: "text/csv" });
+  let link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "toilet_stats.csv";
+  link.click();
 }
 
 updateDisplay();
