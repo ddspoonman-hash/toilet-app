@@ -2,171 +2,81 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>トイレ待機システム</title>
+<title>トイレ順番アプリ</title>
 <style>
 body {
-  margin: 0;
   font-family: sans-serif;
-  background: #f4f4f4;
+  background: #f5f7fa;
   text-align: center;
+  padding: 20px;
 }
-.container {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  height: 100vh;
-}
-.row {
-  display: flex;
-  justify-content: space-around;
-  margin: 20px;
-}
-.button {
-  padding: 30px;
+button {
   font-size: 28px;
-  border-radius: 20px;
+  padding: 20px;
+  margin: 10px;
+  border-radius: 15px;
   border: none;
-  width: 30%;
+  background: #a8dadc;
 }
-.free { background: #a8e6cf; }
-.busy { background: #ffaaa5; }
-.select { background: #dcedc1; }
-.hidden { display: none; }
-.large-text { font-size: 40px; margin: 20px; }
+.big {
+  font-size: 40px;
+}
 </style>
 </head>
 <body>
 
-<div id="main" class="container">
-  <div class="row">
-    <div id="frontStatus" class="button free">手前：空き</div>
-    <div id="backStatus" class="button free">奥：空き</div>
-  </div>
+<h1>トイレ じゅんばん</h1>
 
-  <div class="row">
-    <button class="button select" onclick="joinQueue('front')">手前</button>
-    <button class="button select" onclick="joinQueue('back')">奥</button>
-    <button class="button select" onclick="joinQueue('any')">どちらでもよい</button>
-  </div>
-</div>
+<div id="display" class="big">まちなし</div>
 
-<div id="waiting" class="container hidden">
-  <div class="large-text" id="waitingText"></div>
-</div>
+<br>
 
-<div id="using" class="container hidden">
-  <div class="large-text">使用中です</div>
-  <button class="button select" onclick="finishUse()">使用終了</button>
-</div>
+<button onclick="takeNumber()">じゅんばんをとる</button>
+<button onclick="finishUse()">しよう しゅうりょう</button>
 
 <script>
-let frontBusy = false;
-let backBusy = false;
+let queue = [];
+let current = null;
+let counter = 1;
 
-let frontQueue = [];
-let backQueue = [];
-let anyQueue = [];
-
-let currentNumber = 1;
-let currentUse = null;
-
-function updateStatus() {
-  document.getElementById("frontStatus").textContent = "手前：" + (frontBusy ? "使用中" : "空き");
-  document.getElementById("backStatus").textContent = "奥：" + (backBusy ? "使用中" : "空き");
-
-  document.getElementById("frontStatus").className = "button " + (frontBusy ? "busy" : "free");
-  document.getElementById("backStatus").className = "button " + (backBusy ? "busy" : "free");
+function speak(text) {
+  const msg = new SpeechSynthesisUtterance(text);
+  msg.lang = "ja-JP";
+  speechSynthesis.speak(msg);
 }
 
-function joinQueue(type) {
-  if (type === "front" && !frontBusy) {
-    startUse("front");
-    return;
-  }
-  if (type === "back" && !backBusy) {
-    startUse("back");
-    return;
-  }
-  if (type === "any") {
-    if (!frontBusy) { startUse("front"); return; }
-    if (!backBusy) { startUse("back"); return; }
-  }
-
-  const number = currentNumber++;
-  if (type === "front") frontQueue.push(number);
-  else if (type === "back") backQueue.push(number);
-  else anyQueue.push(number);
-
-  showWaiting(number);
-}
-
-function showWaiting(number) {
-  document.getElementById("main").classList.add("hidden");
-  document.getElementById("waiting").classList.remove("hidden");
-
-  const totalQueue =
-    frontQueue.length +
-    backQueue.length +
-    anyQueue.length;
-
-  document.getElementById("waitingText").textContent =
-    "あなたは " + totalQueue + " 番目です";
-}
-
-function startUse(place) {
-  if (place === "front") frontBusy = true;
-  else backBusy = true;
-
-  currentUse = place;
-
-  speakCall(place);
-
-  document.getElementById("main").classList.add("hidden");
-  document.getElementById("waiting").classList.add("hidden");
-  document.getElementById("using").classList.remove("hidden");
-
-  updateStatus();
+function takeNumber() {
+  queue.push(counter);
+  speak(counter + "ばんです");
+  counter++;
+  updateDisplay();
 }
 
 function finishUse() {
-  if (currentUse === "front") frontBusy = false;
-  else backBusy = false;
-
-  document.getElementById("using").classList.add("hidden");
-  document.getElementById("main").classList.remove("hidden");
-
-  callNext(currentUse);
-
-  currentUse = null;
-  updateStatus();
+  if (current !== null) {
+    speak("ありがとうございました");
+  }
+  nextPerson();
 }
 
-function callNext(place) {
-  let next = null;
-
-  if (place === "front") {
-    if (frontQueue.length > 0) next = frontQueue.shift();
-    else if (anyQueue.length > 0) next = anyQueue.shift();
+function nextPerson() {
+  if (queue.length > 0) {
+    current = queue.shift();
+    speak(current + "ばんのかた どうぞ");
+    updateDisplay();
   } else {
-    if (backQueue.length > 0) next = backQueue.shift();
-    else if (anyQueue.length > 0) next = anyQueue.shift();
-  }
-
-  if (next !== null) {
-    startUse(place);
+    current = null;
+    updateDisplay();
   }
 }
 
-function speakCall(place) {
-  const utter = new SpeechSynthesisUtterance(
-    "次の方、" + (place === "front" ? "手前へどうぞ" : "奥へどうぞ")
-  );
-  utter.lang = "ja-JP";
-  speechSynthesis.speak(utter);
+function updateDisplay() {
+  if (current === null) {
+    document.getElementById("display").innerText = "まちなし";
+  } else {
+    document.getElementById("display").innerText = current + "ばん しようちゅう";
+  }
 }
-
-updateStatus();
 </script>
 
 </body>
