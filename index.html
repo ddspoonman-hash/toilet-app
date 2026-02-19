@@ -2,11 +2,40 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SPOONMAN">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+
   <link rel="apple-touch-icon" href="icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>トイレ順番管理</title>
 
 <style>
+  html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+@media screen and (orientation: portrait) {
+  body::before {
+    content: "横向きで使用してください";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    z-index: 9999;
+  }
+}
+
 body {
   margin: 0;
   font-family: sans-serif;
@@ -82,6 +111,17 @@ button {
 </head>
 
 <body>
+<div id="splash" style="
+position: fixed;
+top:0; left:0; right:0; bottom:0;
+background:#f0f4f8;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:32px;
+z-index:9999;">
+SPOONMAN
+</div>
 
 <div class="header">
 <h1 id="facilityName">SPOONMAN トイレ管理</h1>
@@ -264,6 +304,12 @@ function exportCSV() {
 }
 
 updateDisplay();
+  window.onload = function() {
+  setTimeout(function() {
+    document.getElementById("splash").style.display = "none";
+  }, 1500);
+};
+
 </script>
 
 </body>
