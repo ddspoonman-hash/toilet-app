@@ -2,42 +2,109 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>トイレ順番アプリ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>トイレ順番管理</title>
+
 <style>
 body {
+  margin: 0;
   font-family: sans-serif;
-  background: #f5f7fa;
+  background: #f4f7f9;
   text-align: center;
-  padding: 20px;
 }
-button {
-  font-size: 28px;
+
+h1 {
+  font-size: 32px;
+  margin: 15px;
+}
+
+.container {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.panel {
+  width: 45%;
+  background: #ffffff;
+  border-radius: 20px;
   padding: 20px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.status {
+  font-size: 28px;
   margin: 10px;
-  border-radius: 15px;
+}
+
+button {
+  width: 90%;
+  font-size: 22px;
+  padding: 15px;
+  margin: 8px;
+  border-radius: 12px;
   border: none;
   background: #a8dadc;
 }
-.big {
-  font-size: 40px;
+
+.summary {
+  margin-top: 15px;
+  font-size: 20px;
 }
 </style>
 </head>
+
 <body>
 
-<h1>トイレ じゅんばん</h1>
+<h1>トイレ順番管理</h1>
 
-<div id="display" class="big">まちなし</div>
+<div class="container">
 
-<br>
+<div class="panel">
+<h2>使用状況</h2>
+<div class="status">奥：<span id="oku">空き</span></div>
+<div class="status">手前：<span id="temae">空き</span></div>
+<div class="status" id="wait">待ちなし</div>
+</div>
 
-<button onclick="takeNumber()">じゅんばんをとる</button>
-<button onclick="finishUse()">しよう しゅうりょう</button>
+<div class="panel">
+<h2>受付</h2>
+<button onclick="takeNumber('奥')">奥を希望</button>
+<button onclick="takeNumber('手前')">手前を希望</button>
+<button onclick="takeNumber('どちらでも')">どちらでも</button>
+
+<h2>終了</h2>
+<button onclick="finish('奥')">奥 使用終了</button>
+<button onclick="finish('手前')">手前 使用終了</button>
+
+<div class="summary">
+<h3>本日の利用回数</h3>
+<div>合計：<span id="totalCount">0</span></div>
+<div>奥：<span id="okuCount">0</span></div>
+<div>手前：<span id="temaeCount">0</span></div>
+</div>
+
+</div>
+
+</div>
 
 <script>
 let queue = [];
-let current = null;
 let counter = 1;
+let okuUser = null;
+let temaeUser = null;
+
+let today = new Date().toISOString().split("T")[0];
+
+let stats = JSON.parse(localStorage.getItem("toiletStats")) || {};
+
+if (!stats[today]) {
+  stats[today] = { total: 0, oku: 0, temae: 0 };
+}
+
+function saveStats() {
+  localStorage.setItem("toiletStats", JSON.stringify(stats));
+}
 
 function speak(text) {
   const msg = new SpeechSynthesisUtterance(text);
@@ -45,38 +112,64 @@ function speak(text) {
   speechSynthesis.speak(msg);
 }
 
-function takeNumber() {
-  queue.push(counter);
-  speak(counter + "ばんです");
+function takeNumber(type) {
+  queue.push({number: counter, type: type});
+  speak(counter + "番 受付しました");
   counter++;
+  assignToilet();
+}
+
+function assignToilet() {
+  for (let i = 0; i < queue.length; i++) {
+    let person = queue[i];
+
+    if (!okuUser && (person.type === "奥" || person.type === "どちらでも")) {
+      okuUser = person.number;
+      queue.splice(i, 1);
+      stats[today].total++;
+      stats[today].oku++;
+      speak(okuUser + "番の方 奥どうぞ");
+      saveStats();
+      break;
+    }
+
+    if (!temaeUser && (person.type === "手前" || person.type === "どちらでも")) {
+      temaeUser = person.number;
+      queue.splice(i, 1);
+      stats[today].total++;
+      stats[today].temae++;
+      speak(temaeUser + "番の方 手前どうぞ");
+      saveStats();
+      break;
+    }
+  }
+
   updateDisplay();
 }
 
-function finishUse() {
-  if (current !== null) {
-    speak("ありがとうございました");
-  }
-  nextPerson();
-}
-
-function nextPerson() {
-  if (queue.length > 0) {
-    current = queue.shift();
-    speak(current + "ばんのかた どうぞ");
-    updateDisplay();
+function finish(place) {
+  if (place === "奥") {
+    okuUser = null;
   } else {
-    current = null;
-    updateDisplay();
+    temaeUser = null;
   }
+  speak("使用終了しました");
+  assignToilet();
 }
 
 function updateDisplay() {
-  if (current === null) {
-    document.getElementById("display").innerText = "まちなし";
-  } else {
-    document.getElementById("display").innerText = current + "ばん しようちゅう";
-  }
+  document.getElementById("oku").innerText = okuUser ? okuUser + "番 使用中" : "空き";
+  document.getElementById("temae").innerText = temaeUser ? temaeUser + "番 使用中" : "空き";
+
+  document.getElementById("wait").innerText =
+    queue.length > 0 ? "待ち人数：" + queue.length + "人" : "待ちなし";
+
+  document.getElementById("totalCount").innerText = stats[today].total;
+  document.getElementById("okuCount").innerText = stats[today].oku;
+  document.getElementById("temaeCount").innerText = stats[today].temae;
 }
+
+updateDisplay();
 </script>
 
 </body>
