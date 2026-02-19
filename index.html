@@ -45,7 +45,7 @@ button.actionBtn { border:none; border-radius:12px; padding:14px; margin:6px 0; 
     <button class="actionBtn" onclick="selectToilet('どちらでも')">どちらでも</button>
     <hr>
     <button class="actionBtn" onclick="finishUse()">使用終了</button>
-    <div id="waitDisplay" style="text-align:center; margin-top:10px;">待ちなし</div>
+    <div id="waitDisplay" style="text-align:center; margin-top:10px;">待機なし</div>
   </div>
 </div>
 
@@ -125,7 +125,6 @@ function selectToilet(type){
   if(!selectedUser){ alert("まず利用者を選択してください"); return; }
   selectedToilet=type;
   queue.push({user:selectedUser,toilet:type,time:Date.now()});
-  speak(selectedUser+"さん "+type+"トイレ どうぞ");
   selectedUser=null; selectedToilet=null;
   assignQueue();
   updateWait();
@@ -133,18 +132,50 @@ function selectToilet(type){
 
 function assignQueue(){
   for(let i=0;i<queue.length;i++){
-    let p=queue[i];
-    if(!inUse[p.toilet] && (p.toilet=="奥"||p.toilet=="どちらでも")){ inUse["奥"]=p.user; logs[today].push({user:p.user,toilet:"奥",start:new Date().toLocaleTimeString(),end:null}); queue.splice(i,1); i=-1; continue; }
-    if(!inUse["手前"] && (p.toilet=="手前"||p.toilet=="どちらでも")){ inUse["手前"]=p.user; logs[today].push({user:p.user,toilet:"手前",start:new Date().toLocaleTimeString(),end:null}); queue.splice(i,1); i=-1; continue; }
+    let p = queue[i];
+
+    // 奥を希望
+    if(p.toilet==="奥" && !inUse["奥"]){
+      inUse["奥"] = p.user;
+      logs[today].push({user:p.user,toilet:"奥",start:new Date().toLocaleTimeString(),end:null});
+      speak(p.user+"さん 奥トイレ どうぞ");
+      queue.splice(i,1); i--; continue;
+    }
+
+    // 手前を希望
+    if(p.toilet==="手前" && !inUse["手前"]){
+      inUse["手前"] = p.user;
+      logs[today].push({user:p.user,toilet:"手前",start:new Date().toLocaleTimeString(),end:null});
+      speak(p.user+"さん 手前トイレ どうぞ");
+      queue.splice(i,1); i--; continue;
+    }
+
+    // どちらでもの場合
+    if(p.toilet==="どちらでも"){
+      if(!inUse["奥"]){
+        inUse["奥"]=p.user;
+        logs[today].push({user:p.user,toilet:"奥",start:new Date().toLocaleTimeString(),end:null});
+        speak(p.user+"さん 奥トイレ どうぞ");
+        queue.splice(i,1); i--; continue;
+      } else if(!inUse["手前"]){
+        inUse["手前"]=p.user;
+        logs[today].push({user:p.user,toilet:"手前",start:new Date().toLocaleTimeString(),end:null});
+        speak(p.user+"さん 手前トイレ どうぞ");
+        queue.splice(i,1); i--; continue;
+      }
+      // 両方埋まっていれば待機
+    }
   }
   updateDisplay();
+  updateWait();
   saveLogs();
 }
 
 function finishUse(){
+  if(!selectedUser){ alert("まず利用者を選択してください"); return; }
   for(let t of ["奥","手前"]){
-    if(inUse[t]){
-      let log=logs[today].find(l=>l.user===inUse[t] && !l.end);
+    if(inUse[t]===selectedUser){
+      let log=logs[today].find(l=>l.user===selectedUser && l.toilet===t && !l.end);
       if(log) log.end=new Date().toLocaleTimeString();
       inUse[t]=null;
     }
@@ -154,26 +185,24 @@ function finishUse(){
 
 function updateDisplay(){
   let ubox=document.getElementById("userList");
-  let waitDisplay=document.getElementById("waitDisplay");
-  waitDisplay.innerText = queue.length? "待ち人数："+queue.length+"人":"待ちなし";
-  // 状況表示
   ["奥","手前"].forEach(t=>{
     let div=document.getElementById(t+"Box");
-    if(!div){
-      div=document.createElement("div"); div.id=t+"Box"; div.className="statusBox free"; div.style.marginTop="5px";
-      ubox.parentNode.insertBefore(div, ubox);
-    }
+    if(!div){ div=document.createElement("div"); div.id=t+"Box"; div.className="statusBox free"; div.style.marginTop="5px"; ubox.parentNode.insertBefore(div, ubox); }
     if(inUse[t]){ div.innerText=t+"："+inUse[t]+"さん 使用中"; div.className="statusBox busy"; }
     else{ div.innerText=t+"：空き"; div.className="statusBox free"; }
   });
 }
 
+function updateWait(){
+  let okuWait=queue.filter(p=>p.toilet==="奥"||p.toilet==="どちらでも").length;
+  let temaeWait=queue.filter(p=>p.toilet==="手前"||p.toilet==="どちらでも").length;
+  document.getElementById("waitDisplay").innerText=`奥待機: ${okuWait}人  手前待機: ${temaeWait}人`;
+}
+
 function updateAdminView(){
   renderAdminUserList();
   let logDiv=document.getElementById("logDisplay"); logDiv.innerHTML="";
-  logs[today].forEach(l=>{
-    logDiv.innerHTML += l.user+" "+l.toilet+" "+(l.start||"")+" → "+(l.end||"")+"<br>";
-  });
+  logs[today].forEach(l=>{ logDiv.innerHTML+=l.user+" "+l.toilet+" "+(l.start||"")+" → "+(l.end||"")+"<br>"; });
 }
 
 function enterAdmin(){
@@ -185,22 +214,20 @@ function enterAdmin(){
   }else{ alert("パスワード違います"); }
 }
 function exitAdmin(){ document.getElementById("adminView").classList.add("hidden"); document.getElementById("mainView").classList.remove("hidden"); }
-function resetData(){ if(confirm("本日データをリセットしますか？")){ logs[today]=[]; inUse={奥:null,手前:null}; queue=[]; saveLogs(); updateDisplay(); updateAdminView(); } }
+function resetData(){ if(confirm("本日データをリセットしますか？")){ logs[today]=[]; inUse={奥:null,手前:null}; queue=[]; saveLogs(); updateDisplay(); updateWait(); updateAdminView(); } }
 function exportCSV(){
   let csv="日付,利用者,トイレ,開始,終了\n";
-  for(let d in logs){
-    logs[d].forEach(l=>{ csv+=d+","+l.user+","+l.toilet+","+l.start+","+l.end+"\n"; });
-  }
+  for(let d in logs){ logs[d].forEach(l=>{ csv+=d+","+l.user+","+l.toilet+","+l.start+","+l.end+"\n"; }); }
   let blob=new Blob([csv],{type:"text/csv"});
   let link=document.createElement("a"); link.href=URL.createObjectURL(blob); link.download="SPトイレ_logs.csv"; link.click();
 }
 
 function speak(text){ const msg=new SpeechSynthesisUtterance(text); msg.lang="ja-JP"; speechSynthesis.speak(msg); }
 
-// 初期描画
 renderUserList();
 renderAdminUserList();
 updateDisplay();
+updateWait();
 </script>
 
 </body>
