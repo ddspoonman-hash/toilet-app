@@ -2,314 +2,205 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SPトイレ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="SPOONMAN">
+<meta name="apple-mobile-web-app-title" content="SPトイレ">
 <link rel="apple-touch-icon" href="icon.png">
-<link rel="manifest" href="manifest.json">
-
-  <link rel="apple-touch-icon" href="icon.png">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>トイレ順番管理</title>
 
 <style>
-  html, body {
-  height: 100%;
-  overflow: hidden;
-}
-
-@media screen and (orientation: portrait) {
-  body::before {
-    content: "横向きで使用してください";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    z-index: 9999;
-  }
-}
-
-body {
-  margin: 0;
-  font-family: sans-serif;
-  background: #f0f4f8;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
-}
-
-h1 {
-  font-size: 26px;
-}
-
-.adminBtn {
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: none;
-  background: #ccc;
-}
-
-.container {
-  display: flex;
-  justify-content: space-around;
-  padding: 15px;
-}
-
-.panel {
-  width: 45%;
-  background: #ffffff;
-  border-radius: 20px;
-  padding: 20px;
-  box-shadow: 0 5px 12px rgba(0,0,0,0.1);
-}
-
-.statusBox {
-  font-size: 28px;
-  padding: 15px;
-  margin: 10px 0;
-  border-radius: 15px;
-}
-
-.free {
-  background: #d4edda;
-}
-
-.busy {
-  background: #f8d7da;
-}
-
-.wait {
-  font-size: 22px;
-  margin-top: 10px;
-}
-
-button {
-  width: 100%;
-  font-size: 20px;
-  padding: 14px;
-  margin: 6px 0;
-  border-radius: 12px;
-  border: none;
-  background: #a8dadc;
-}
-
-.hidden {
-  display: none;
+body { margin:0; font-family:-apple-system,BlinkMacSystemFont,sans-serif; background:#f0f4f8; }
+.header { text-align:center; padding:10px; font-size:22px; font-weight:bold; position:relative; }
+.header button { position:absolute; right:10px; top:10px; padding:6px 10px; border:none; border-radius:8px; background:#ccc; }
+.container { display:flex; flex-wrap:wrap; justify-content:space-around; padding:10px; }
+.panel { background:#fff; border-radius:20px; padding:15px; margin:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); flex:1 1 45%; min-width:300px; }
+.statusBox { border-radius:15px; padding:15px; margin:8px 0; font-size:20px; text-align:center; }
+.free { background:#d4edda; }
+.busy { background:#f8d7da; }
+button.actionBtn { border:none; border-radius:12px; padding:14px; margin:6px 0; font-size:18px; width:100%; background:#a8dadc; }
+.hidden { display:none; }
+#splash { position:fixed; top:0; left:0; right:0; bottom:0; background:#f0f4f8; display:flex; align-items:center; justify-content:center; font-size:32px; z-index:9999; }
+@media screen and (orientation:portrait) {
+  body::before { content:"横向きで使用してください"; position:fixed; top:0; left:0; right:0; bottom:0; background:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; z-index:9999; }
 }
 </style>
 </head>
 
 <body>
-<div id="splash" style="
-position: fixed;
-top:0; left:0; right:0; bottom:0;
-background:#f0f4f8;
-display:flex;
-align-items:center;
-justify-content:center;
-font-size:32px;
-z-index:9999;">
-SPOONMAN
+<div id="splash">SPトイレ</div>
+
+<div class="header">SPトイレ
+<button onclick="enterAdmin()">🔒</button>
 </div>
 
-<div class="header">
-<h1 id="facilityName">SPOONMAN トイレ管理</h1>
-<button class="adminBtn" onclick="enterAdmin()">🔒 管理</button>
+<div id="mainView" class="container">
+  <div class="panel" id="userPanel">
+    <h3>利用者選択</h3>
+    <div id="userList"></div>
+  </div>
+  <div class="panel">
+    <h3>トイレ選択</h3>
+    <button class="actionBtn" onclick="selectToilet('奥')">奥を希望</button>
+    <button class="actionBtn" onclick="selectToilet('手前')">手前を希望</button>
+    <button class="actionBtn" onclick="selectToilet('どちらでも')">どちらでも</button>
+    <hr>
+    <button class="actionBtn" onclick="finishUse()">使用終了</button>
+    <div id="waitDisplay" style="text-align:center; margin-top:10px;">待ちなし</div>
+  </div>
 </div>
 
-<div class="container" id="mainView">
-
-<div class="panel">
-<h2>使用状況</h2>
-<div id="okuBox" class="statusBox free">奥：空き</div>
-<div id="temaeBox" class="statusBox free">手前：空き</div>
-<div class="wait" id="wait">待ちなし</div>
-</div>
-
-<div class="panel">
-<h2>受付</h2>
-<button onclick="takeNumber('奥')">奥を希望</button>
-<button onclick="takeNumber('手前')">手前を希望</button>
-<button onclick="takeNumber('どちらでも')">どちらでも</button>
-
-<h2>終了</h2>
-<button onclick="finish('奥')">奥 使用終了</button>
-<button onclick="finish('手前')">手前 使用終了</button>
-</div>
-
-</div>
-
-<div id="adminView" class="hidden" style="padding:20px;">
-<h2>管理画面</h2>
-
-<div>本日 合計：<span id="totalCount">0</span></div>
-<div>奥：<span id="okuCount">0</span></div>
-<div>手前：<span id="temaeCount">0</span></div>
-
-<br>
-
-<button onclick="resetData()">本日データリセット</button>
-<button onclick="exportCSV()">CSV出力</button>
+<div id="adminView" class="hidden" style="padding:15px;">
+<h3>管理者画面</h3>
 <button onclick="exitAdmin()">戻る</button>
+<hr>
+<h4>利用者管理</h4>
+<input type="text" id="newUserName" placeholder="名前を入力">
+<button onclick="addUser()">追加</button>
+<ul id="adminUserList"></ul>
+<hr>
+<h4>ログ（本日）</h4>
+<button onclick="resetData()">リセット</button>
+<button onclick="exportCSV()">CSV出力</button>
+<div id="logDisplay"></div>
 </div>
 
 <script>
+// 管理者パスワード
 const ADMIN_PASS = "5811";
 
+// スプラッシュ表示
+window.onload = function() { setTimeout(()=>{document.getElementById('splash').style.display='none';},1500); }
+
 let today = new Date().toISOString().split("T")[0];
-let savedDate = localStorage.getItem("date");
-
-if (savedDate !== today) {
-  localStorage.setItem("counter", "1");
+if(localStorage.getItem("date")!==today){
   localStorage.setItem("date", today);
+  localStorage.setItem("counter","1");
 }
-
-let counter = parseInt(localStorage.getItem("counter")) || 1;
-
+let counter = parseInt(localStorage.getItem("counter")||"1");
+let selectedUser = null;
+let selectedToilet = null;
 let queue = [];
-let okuUser = null;
-let temaeUser = null;
+let inUse = {奥:null, 手前:null};
+let logs = JSON.parse(localStorage.getItem("logs")||"{}");
+if(!logs[today]) logs[today]=[];
+let users = JSON.parse(localStorage.getItem("users")||"[]");
 
-let stats = JSON.parse(localStorage.getItem("toiletStats")) || {};
-if (!stats[today]) {
-  stats[today] = { total: 0, oku: 0, temae: 0 };
+// 最大35人
+if(users.length<35){
+  for(let i=users.length;i<35;i++) users.push("利用者"+(i+1));
+  saveUsers();
 }
 
-function saveAll() {
-  localStorage.setItem("counter", counter);
-  localStorage.setItem("toiletStats", JSON.stringify(stats));
+function saveUsers(){ localStorage.setItem("users", JSON.stringify(users)); }
+function saveLogs(){ localStorage.setItem("logs", JSON.stringify(logs)); }
+function saveCounter(){ localStorage.setItem("counter", counter); }
+
+function renderUserList(){
+  let ul = document.getElementById("userList"); ul.innerHTML="";
+  users.forEach((name,i)=>{
+    let btn = document.createElement("button");
+    btn.innerText=name;
+    btn.className="actionBtn";
+    btn.onclick=()=>{ selectedUser=name; alert(name+"さんを選択"); };
+    ul.appendChild(btn);
+  });
+}
+function renderAdminUserList(){
+  let ul=document.getElementById("adminUserList"); ul.innerHTML="";
+  users.forEach((name,i)=>{
+    let li=document.createElement("li");
+    li.innerHTML=name+' <button onclick="editUser('+i+')">編集</button> <button onclick="delUser('+i+')">削除</button>';
+    ul.appendChild(li);
+  });
 }
 
-function speak(text) {
-  const msg = new SpeechSynthesisUtterance(text);
-  msg.lang = "ja-JP";
-  speechSynthesis.speak(msg);
+function addUser(){
+  let val=document.getElementById("newUserName").value.trim();
+  if(val && users.length<35){ users.push(val); saveUsers(); renderUserList(); renderAdminUserList(); document.getElementById("newUserName").value=""; }
+}
+function editUser(i){ let val=prompt("名前編集", users[i]); if(val){ users[i]=val; saveUsers(); renderUserList(); renderAdminUserList(); } }
+function delUser(i){ if(confirm("削除しますか？")){ users.splice(i,1); saveUsers(); renderUserList(); renderAdminUserList(); } }
+
+function selectToilet(type){
+  if(!selectedUser){ alert("まず利用者を選択してください"); return; }
+  selectedToilet=type;
+  queue.push({user:selectedUser,toilet:type,time:Date.now()});
+  speak(selectedUser+"さん "+type+"トイレ どうぞ");
+  selectedUser=null; selectedToilet=null;
+  assignQueue();
+  updateWait();
 }
 
-function takeNumber(type) {
-  queue.push({number: counter, type: type});
-  speak(counter + "番さん 受付しました");
-  counter++;
-  saveAll();
-  assignToilet();
-}
-
-function assignToilet() {
-  for (let i = 0; i < queue.length; i++) {
-    let person = queue[i];
-
-    if (!okuUser && (person.type === "奥" || person.type === "どちらでも")) {
-      okuUser = person.number;
-      queue.splice(i, 1);
-      stats[today].total++;
-      stats[today].oku++;
-      speak(okuUser + "番さん 奥へどうぞ");
-      break;
-    }
-
-    if (!temaeUser && (person.type === "手前" || person.type === "どちらでも")) {
-      temaeUser = person.number;
-      queue.splice(i, 1);
-      stats[today].total++;
-      stats[today].temae++;
-      speak(temaeUser + "番さん 手前へどうぞ");
-      break;
-    }
+function assignQueue(){
+  for(let i=0;i<queue.length;i++){
+    let p=queue[i];
+    if(!inUse[p.toilet] && (p.toilet=="奥"||p.toilet=="どちらでも")){ inUse["奥"]=p.user; logs[today].push({user:p.user,toilet:"奥",start:new Date().toLocaleTimeString(),end:null}); queue.splice(i,1); i=-1; continue; }
+    if(!inUse["手前"] && (p.toilet=="手前"||p.toilet=="どちらでも")){ inUse["手前"]=p.user; logs[today].push({user:p.user,toilet:"手前",start:new Date().toLocaleTimeString(),end:null}); queue.splice(i,1); i=-1; continue; }
   }
-  saveAll();
   updateDisplay();
+  saveLogs();
 }
 
-function finish(place) {
-  if (place === "奥") okuUser = null;
-  if (place === "手前") temaeUser = null;
-  speak("使用終了しました");
-  assignToilet();
-}
-
-function updateDisplay() {
-  let okuBox = document.getElementById("okuBox");
-  let temaeBox = document.getElementById("temaeBox");
-
-  if (okuUser) {
-    okuBox.className = "statusBox busy";
-    okuBox.innerText = "奥：" + okuUser + "番 使用中";
-  } else {
-    okuBox.className = "statusBox free";
-    okuBox.innerText = "奥：空き";
+function finishUse(){
+  for(let t of ["奥","手前"]){
+    if(inUse[t]){
+      let log=logs[today].find(l=>l.user===inUse[t] && !l.end);
+      if(log) log.end=new Date().toLocaleTimeString();
+      inUse[t]=null;
+    }
   }
-
-  if (temaeUser) {
-    temaeBox.className = "statusBox busy";
-    temaeBox.innerText = "手前：" + temaeUser + "番 使用中";
-  } else {
-    temaeBox.className = "statusBox free";
-    temaeBox.innerText = "手前：空き";
-  }
-
-  document.getElementById("wait").innerText =
-    queue.length > 0 ? "待ち人数：" + queue.length + "人" : "待ちなし";
-
-  document.getElementById("totalCount").innerText = stats[today].total;
-  document.getElementById("okuCount").innerText = stats[today].oku;
-  document.getElementById("temaeCount").innerText = stats[today].temae;
+  assignQueue();
 }
 
-function enterAdmin() {
-  const pass = prompt("パスコード");
-  if (pass === ADMIN_PASS) {
+function updateDisplay(){
+  let ubox=document.getElementById("userList");
+  let waitDisplay=document.getElementById("waitDisplay");
+  waitDisplay.innerText = queue.length? "待ち人数："+queue.length+"人":"待ちなし";
+  // 状況表示
+  ["奥","手前"].forEach(t=>{
+    let div=document.getElementById(t+"Box");
+    if(!div){
+      div=document.createElement("div"); div.id=t+"Box"; div.className="statusBox free"; div.style.marginTop="5px";
+      ubox.parentNode.insertBefore(div, ubox);
+    }
+    if(inUse[t]){ div.innerText=t+"："+inUse[t]+"さん 使用中"; div.className="statusBox busy"; }
+    else{ div.innerText=t+"：空き"; div.className="statusBox free"; }
+  });
+}
+
+function updateAdminView(){
+  renderAdminUserList();
+  let logDiv=document.getElementById("logDisplay"); logDiv.innerHTML="";
+  logs[today].forEach(l=>{
+    logDiv.innerHTML += l.user+" "+l.toilet+" "+(l.start||"")+" → "+(l.end||"")+"<br>";
+  });
+}
+
+function enterAdmin(){
+  let pass=prompt("パスワード"); 
+  if(pass===ADMIN_PASS){
     document.getElementById("mainView").classList.add("hidden");
     document.getElementById("adminView").classList.remove("hidden");
-    updateDisplay();
-  } else {
-    alert("パスコードが違います");
+    updateAdminView();
+  }else{ alert("パスワード違います"); }
+}
+function exitAdmin(){ document.getElementById("adminView").classList.add("hidden"); document.getElementById("mainView").classList.remove("hidden"); }
+function resetData(){ if(confirm("本日データをリセットしますか？")){ logs[today]=[]; inUse={奥:null,手前:null}; queue=[]; saveLogs(); updateDisplay(); updateAdminView(); } }
+function exportCSV(){
+  let csv="日付,利用者,トイレ,開始,終了\n";
+  for(let d in logs){
+    logs[d].forEach(l=>{ csv+=d+","+l.user+","+l.toilet+","+l.start+","+l.end+"\n"; });
   }
+  let blob=new Blob([csv],{type:"text/csv"});
+  let link=document.createElement("a"); link.href=URL.createObjectURL(blob); link.download="SPトイレ_logs.csv"; link.click();
 }
 
-function exitAdmin() {
-  document.getElementById("adminView").classList.add("hidden");
-  document.getElementById("mainView").classList.remove("hidden");
-}
+function speak(text){ const msg=new SpeechSynthesisUtterance(text); msg.lang="ja-JP"; speechSynthesis.speak(msg); }
 
-function resetData() {
-  if (confirm("本日のデータをリセットしますか？")) {
-    stats[today] = { total: 0, oku: 0, temae: 0 };
-    counter = 1;
-    saveAll();
-    updateDisplay();
-  }
-}
-
-function exportCSV() {
-  let csv = "日付,合計,奥,手前\n";
-  for (let date in stats) {
-    csv += date + "," + stats[date].total + "," + stats[date].oku + "," + stats[date].temae + "\n";
-  }
-  let blob = new Blob([csv], { type: "text/csv" });
-  let link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "toilet_stats.csv";
-  link.click();
-}
-
+// 初期描画
+renderUserList();
+renderAdminUserList();
 updateDisplay();
-  window.onload = function() {
-  setTimeout(function() {
-    document.getElementById("splash").style.display = "none";
-  }, 1500);
-};
-
 </script>
 
 </body>
