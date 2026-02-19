@@ -9,23 +9,22 @@
 body {
   margin: 0;
   font-family: sans-serif;
-  background: #f4f7f9;
+  background: #f0f4f8;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
+  padding: 15px 20px;
 }
 
 h1 {
-  font-size: 28px;
+  font-size: 26px;
 }
 
 .adminBtn {
-  font-size: 16px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-radius: 8px;
   border: none;
   background: #ccc;
@@ -34,7 +33,7 @@ h1 {
 .container {
   display: flex;
   justify-content: space-around;
-  padding: 10px;
+  padding: 15px;
 }
 
 .panel {
@@ -42,27 +41,37 @@ h1 {
   background: #ffffff;
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 5px 12px rgba(0,0,0,0.1);
 }
 
-.status {
-  font-size: 24px;
-  margin: 10px;
+.statusBox {
+  font-size: 28px;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 15px;
+}
+
+.free {
+  background: #d4edda;
+}
+
+.busy {
+  background: #f8d7da;
+}
+
+.wait {
+  font-size: 22px;
+  margin-top: 10px;
 }
 
 button {
-  width: 95%;
+  width: 100%;
   font-size: 20px;
-  padding: 15px;
-  margin: 8px 0;
+  padding: 14px;
+  margin: 6px 0;
   border-radius: 12px;
   border: none;
   background: #a8dadc;
-}
-
-.summary {
-  margin-top: 10px;
-  font-size: 18px;
 }
 
 .hidden {
@@ -74,17 +83,17 @@ button {
 <body>
 
 <div class="header">
-<h1>トイレ順番管理</h1>
-<button class="adminBtn" onclick="enterAdmin()">🔒 管理者</button>
+<h1 id="facilityName">SPOONMAN トイレ管理</h1>
+<button class="adminBtn" onclick="enterAdmin()">🔒 管理</button>
 </div>
 
 <div class="container" id="mainView">
 
 <div class="panel">
 <h2>使用状況</h2>
-<div class="status">奥：<span id="oku">空き</span></div>
-<div class="status">手前：<span id="temae">空き</span></div>
-<div class="status" id="wait">待ちなし</div>
+<div id="okuBox" class="statusBox free">奥：空き</div>
+<div id="temaeBox" class="statusBox free">手前：空き</div>
+<div class="wait" id="wait">待ちなし</div>
 </div>
 
 <div class="panel">
@@ -100,40 +109,44 @@ button {
 
 </div>
 
-<!-- 管理画面 -->
 <div id="adminView" class="hidden" style="padding:20px;">
-<h2>管理者画面</h2>
+<h2>管理画面</h2>
 
-<div>
-<h3>本日の集計</h3>
-<div>合計：<span id="totalCount">0</span></div>
+<div>本日 合計：<span id="totalCount">0</span></div>
 <div>奥：<span id="okuCount">0</span></div>
 <div>手前：<span id="temaeCount">0</span></div>
-</div>
 
 <br>
 
-<button onclick="resetData()">本日データをリセット</button>
+<button onclick="resetData()">本日データリセット</button>
 <button onclick="exportCSV()">CSV出力</button>
 <button onclick="exitAdmin()">戻る</button>
-
 </div>
 
 <script>
 const ADMIN_PASS = "5811";
 
+let today = new Date().toISOString().split("T")[0];
+let savedDate = localStorage.getItem("date");
+
+if (savedDate !== today) {
+  localStorage.setItem("counter", "1");
+  localStorage.setItem("date", today);
+}
+
+let counter = parseInt(localStorage.getItem("counter")) || 1;
+
 let queue = [];
-let counter = 1;
 let okuUser = null;
 let temaeUser = null;
 
-let today = new Date().toISOString().split("T")[0];
 let stats = JSON.parse(localStorage.getItem("toiletStats")) || {};
 if (!stats[today]) {
   stats[today] = { total: 0, oku: 0, temae: 0 };
 }
 
-function saveStats() {
+function saveAll() {
+  localStorage.setItem("counter", counter);
   localStorage.setItem("toiletStats", JSON.stringify(stats));
 }
 
@@ -145,8 +158,9 @@ function speak(text) {
 
 function takeNumber(type) {
   queue.push({number: counter, type: type});
-  speak(counter + "番 受付しました");
+  speak(counter + "番さん 受付しました");
   counter++;
+  saveAll();
   assignToilet();
 }
 
@@ -159,8 +173,7 @@ function assignToilet() {
       queue.splice(i, 1);
       stats[today].total++;
       stats[today].oku++;
-      speak(okuUser + "番の方 奥どうぞ");
-      saveStats();
+      speak(okuUser + "番さん 奥へどうぞ");
       break;
     }
 
@@ -169,11 +182,11 @@ function assignToilet() {
       queue.splice(i, 1);
       stats[today].total++;
       stats[today].temae++;
-      speak(temaeUser + "番の方 手前どうぞ");
-      saveStats();
+      speak(temaeUser + "番さん 手前へどうぞ");
       break;
     }
   }
+  saveAll();
   updateDisplay();
 }
 
@@ -185,8 +198,25 @@ function finish(place) {
 }
 
 function updateDisplay() {
-  document.getElementById("oku").innerText = okuUser ? okuUser + "番 使用中" : "空き";
-  document.getElementById("temae").innerText = temaeUser ? temaeUser + "番 使用中" : "空き";
+  let okuBox = document.getElementById("okuBox");
+  let temaeBox = document.getElementById("temaeBox");
+
+  if (okuUser) {
+    okuBox.className = "statusBox busy";
+    okuBox.innerText = "奥：" + okuUser + "番 使用中";
+  } else {
+    okuBox.className = "statusBox free";
+    okuBox.innerText = "奥：空き";
+  }
+
+  if (temaeUser) {
+    temaeBox.className = "statusBox busy";
+    temaeBox.innerText = "手前：" + temaeUser + "番 使用中";
+  } else {
+    temaeBox.className = "statusBox free";
+    temaeBox.innerText = "手前：空き";
+  }
+
   document.getElementById("wait").innerText =
     queue.length > 0 ? "待ち人数：" + queue.length + "人" : "待ちなし";
 
@@ -196,7 +226,7 @@ function updateDisplay() {
 }
 
 function enterAdmin() {
-  const pass = prompt("管理者パスコードを入力");
+  const pass = prompt("パスコード");
   if (pass === ADMIN_PASS) {
     document.getElementById("mainView").classList.add("hidden");
     document.getElementById("adminView").classList.remove("hidden");
@@ -214,7 +244,8 @@ function exitAdmin() {
 function resetData() {
   if (confirm("本日のデータをリセットしますか？")) {
     stats[today] = { total: 0, oku: 0, temae: 0 };
-    saveStats();
+    counter = 1;
+    saveAll();
     updateDisplay();
   }
 }
